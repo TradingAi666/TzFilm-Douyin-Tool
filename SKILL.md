@@ -119,7 +119,7 @@ check returning `js_ok` means the AppleScript pipeline works, but the user may
 still be logged out.
 
 **Recovery:** User must re-login to `creator.douyin.com` in Chrome. No script changes needed.
-After re-login, verify with a manual scrape run: `python3 ~/.hermes/scripts/douyin_hourly.py`
+After re-login, verify with a manual scrape run: `python3 ~/.codex/douyin-tool/scripts/douyin_hourly.py`
 
 ## Pitfall #3: Page Stuck on Home → Tabs/Buttons Not Found
 
@@ -337,18 +337,18 @@ CREATE TABLE video_stats (
 - `ctr` = 5s完播率 (%), stored from xlsx column 「5s完播率」
 - `finish_rate` = 完播率/播放占比 (%), stored from xlsx column 「完播率」 (2026-05-23 新增)
 - `avg_duration_sec` = average watch duration in seconds
-- `status` = 审核状态 («公开», «自见», «私密», «未通过», etc.) — added 2026-05-23. **Must use ALTER TABLE ADD COLUMN** + explicit column names in INSERT to avoid column ordering bugs (see Pitfall #7). **Filter `status NOT IN ('自见', '私密', '未通过', '审核中', '已删除')` when syncing to Feishu** — `feishu_sync.py` applies this filter in the SELECT query.
+- `status` = 审核状态 («公开», «自见», «私密», «未通过», etc.) — added 2026-05-23. **Must use ALTER TABLE ADD COLUMN** + explicit column names in INSERT to avoid column ordering bugs (see Pitfall #7). **Filter `status NOT IN ('自见', '私密', '未通过', '审核中', '已删除')` when syncing to Notion** — `notion_sync.py` applies this filter in the SELECT query.
 
 **publish_date has 3 formats mixed** (short ISO / full ISO / Chinese). Always match on `title` only, never `publish_date`.
 
 ## Pitfall #8: status Field Not Stored → All Videos Synced (2026-05-23)
 
-The scraper parsed «审核状态» from xlsx but didn't store it in the DB (line 348 reads it, line 388 didn't include it in INSERT). `feishu_sync.py` synced ALL 102 videos including 私密/自见 ones. **Fix**: ① `ALTER TABLE video_stats ADD COLUMN status TEXT` ② INSERT includes `status` with explicit column names ③ `feishu_sync.py` filters `WHERE status NOT IN ('自见', '私密', '未通过', '审核中', '已删除')`. **Cleanup**: after fix, manually delete stale Feishu records that match private video titles — sync is upsert-only, never deletes.
+The scraper parsed «审核状态» from xlsx but didn't store it in the DB (line 348 reads it, line 388 didn't include it in INSERT). The sync script can push ALL videos if this filter is missing. **Fix**: ① `ALTER TABLE video_stats ADD COLUMN status TEXT` ② INSERT includes `status` with explicit column names ③ `notion_sync.py` filters `WHERE status NOT IN ('自见', '私密', '未通过', '审核中', '已删除')`. **Cleanup**: after fix, move stale Notion pages that match private video titles to trash.
 
 ## launchd Deployment
 
 ```xml
-<!-- ~/Library/LaunchAgents/com.hermes.douyin-tracker.plist -->
+<!-- ~/Library/LaunchAgents/com.codex.douyin-tracker.plist -->
 <key>StartInterval</key><integer>3600</integer>
 <key>EnvironmentVariables</key>
 <dict>
@@ -358,7 +358,7 @@ The scraper parsed «审核状态» from xlsx but didn't store it in the DB (lin
 ```
 
 Reload: `launchctl unload/load ~/Library/LaunchAgents/...plist`
-Trigger: `launchctl kickstart -k gui/$(id -u)/com.hermes.douyin-tracker`
+Trigger: `launchctl kickstart -k gui/$(id -u)/com.codex.douyin-tracker`
 
 ## Pitfall #4: Douyin UI Redesign → Export Button Gone (2026-05-22)
 
@@ -429,7 +429,7 @@ ps aux | grep douyin_hourly
 **Fix:** Kill the stale PID, then manually trigger a run or wait for next schedule:
 ```bash
 kill <stale_pid>
-launchctl kickstart -k gui/$(id -u)/com.hermes.douyin-tracker
+launchctl kickstart -k gui/$(id -u)/com.codex.douyin-tracker
 ```
 
 **Symptoms:**
@@ -502,7 +502,7 @@ cursor.execute(
 
 **Root cause A — `flock()` leaks through subprocess file descriptors:**
 `douyin_hourly.py` uses `fcntl.flock()` to prevent concurrent Chrome access.
-After acquiring the lock, it calls `subprocess.run(['python3', 'feishu_sync.py'])`.
+After acquiring the lock, it calls `subprocess.run(['python3', 'notion_sync.py'])`.
 **Without `close_fds=True`**, the child process inherits ALL open file descriptors,
 including `lock_fd`. `flock()` locks are attached to the **open file description**
 (kernel-level), not the file descriptor. Even when the parent's `finally` block
@@ -520,20 +520,20 @@ If Python process crashes or is killed, 0-byte lock file persists on disk.
 **Fix:**
 ```python
 # In douyin_hourly.py AND douyin_new_video_tracker.py (3 locations total):
-_sp.run(['python3', 'feishu_sync.py'],
+_sp.run(['python3', 'notion_sync.py'],
         timeout=300, capture_output=True, close_fds=True)  # ← close_fds=True
 ```
 
 **Recovery (stale lock):**
 ```bash
-rm -f ~/.hermes/.douyin_scrape.lock
+rm -f ~/.codex/douyin-tool/.douyin_scrape.lock
 ```
 
 | Symptom | Root cause |
 |---|---|
 | `⚠️ 已有抓取进程在运行，跳过本次` × N | Lock leaked via subprocess FDs |
 | Lock persists after parent process exits | Child process inherits open file description |
-| `ps aux` shows zero douyin processes | Parent exited, child still running feishu_sync |
+| `ps aux` shows zero douyin processes | Parent exited, child still running notion_sync |
 
 ## Pitfall #10: `scrape_total_followers` — Garfish Isolation + AppleScript Fix (2026-05-24)
 
@@ -612,7 +612,7 @@ def save_account_stats(data):
 |---|---|
 | `today_new_fans` = 0 for all rows | Page has no "新增" text; JS search fails |
 | `total_fans` increases but `today_new` stays 0 | Two separate data sources: total from page works, daily doesn't exist |
-| Feishu account chart shows flat "今日新增" line | All DB entries have today_new=0 |
+| Notion account chart shows flat "今日新增" line | All DB entries have today_new=0 |
 
 The `scrape_total_followers()` function originally used AppleScript to navigate to
 `creator-micro/home`, looping through ALL Chrome windows/tabs without `exit repeat`.
@@ -663,11 +663,11 @@ def scrape_total_followers():
 | Fans data missing from account_stats | Function returns None on timeout |
 | `粉丝: 48500 (今日+0)` but total is 48900 | Stale data from old successful run |
 
-The scraper chains a Feishu sync as step 10 after Telegram report — see `douyin-automation/references/feishu-sync.md`.
+The scraper chains a Notion sync after Telegram report — see `skills/notion-douyin-sync.md`.
 
 ## Existing Infrastructure
 
-- Script: `~/.hermes/scripts/douyin_hourly.py`
-- Log: `~/.hermes/logs/douyin_hourly.log`
-- DB: `~/.hermes/douyin_stats.db`
+- Script: `~/.codex/douyin-tool/scripts/douyin_hourly.py`
+- Log: `~/.codex/douyin-tool/logs/douyin_hourly.log`
+- DB: `~/.codex/douyin-tool/douyin_stats.db`
 - Download dir: `/tmp/douyin_dl/`
