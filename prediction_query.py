@@ -14,7 +14,7 @@ import os
 from datetime import datetime
 from collections import defaultdict
 
-DB_PATH = os.environ.get("DOUYIN_DB_PATH", "./douyin_stats.db")
+DB_PATH = os.environ.get("DOUYIN_DB_PATH", os.path.expanduser("~/.codex/douyin-tool/douyin_stats.db"))
 
 
 def format_num(n):

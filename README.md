@@ -90,33 +90,53 @@ python3 douyin_hourly.py
 ```bash
 # 编辑 plist，把 YOUR_USERNAME 换成你的 macOS 用户名
 # 然后：
-cp com.hermes.douyin-tracker.plist ~/Library/LaunchAgents/
-launchctl load ~/Library/LaunchAgents/com.hermes.douyin-tracker.plist
+cp com.codex.douyin-tracker.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.codex.douyin-tracker.plist
 ```
 
 搞定。以后每小时自动跑一次。
 
-### 配合 Hermes Agent 用
+### 配合 Codex Agent 用
 
 ```bash
-# 把 SKILL.md 放到 Hermes skills 目录
-mkdir -p ~/.hermes/skills/douyin
-cp SKILL.md ~/.hermes/skills/douyin/TzFilm-Douyin-Tool.md
+# 把 SKILL.md 放到 Codex skills 目录
+mkdir -p ~/.codex/skills/douyin
+cp SKILL.md ~/.codex/skills/douyin/TzFilm-Douyin-Tool.md
 ```
 
-然后跟 Hermes 说一句：
+然后跟 Codex 说一句：
 
-> @Hermes 拉取抖音数据
+> @Codex 拉取抖音数据
 
 Agent 会自动按 SKILL.md 里的流程操作。
 
 ### 想推送到 Telegram？
 
-在 `~/.hermes/.env` 里加两行：
+在 `~/.codex/douyin-tool/.env` 里加两行：
 
 ```
 TELEGRAM_BOT_TOKEN=你的Bot Token
 TELEGRAM_HOME_CHANNEL=你的Chat ID
+```
+
+### 想同步到 Notion？
+
+先在 Notion 创建 3 个数据库 / data source，并把集成授权给这些页面：
+
+```bash
+# ~/.codex/douyin-tool/.env
+NOTION_TOKEN=你的Notion集成Token
+NOTION_SOURCE_OVERVIEW=视频数据总览的data_source_id
+NOTION_SOURCE_TRACKING=最新作品追踪的data_source_id
+NOTION_SOURCE_ACCOUNT=账号总览的data_source_id
+```
+
+字段名默认沿用脚本里的中文列名：总览表 key 是 `文本`，追踪和账号表 key 是 `多行文本`。如果你的 Notion key 列不同，可以加：
+
+```bash
+NOTION_KEY_OVERVIEW=标题
+NOTION_KEY_TRACKING=标题
+NOTION_KEY_ACCOUNT=时间
 ```
 
 ## 文件清单
@@ -126,11 +146,12 @@ TELEGRAM_HOME_CHANNEL=你的Chat ID
 | `douyin_hourly.py` | 🔧 核心抓取脚本（~500 行 Python + 内嵌 AppleScript） |
 | `douyin_new_video_tracker.py` | 🔮 新视频追踪+预测（每30分钟采集 → 同期对比 → 预测最终播放） |
 | `prediction_query.py` | 📊 查询追踪数据：最新快照 / 增长曲线 / 24h倍率 |
+| `notion_sync.py` | 🔗 同步抖音数据到 Notion（三表：总览 / 追踪 / 账号） |
 | `auto_reply.py` | 💬 Python 一键封装：`export` 导出评论 / `reply` 批量回复 |
 | `auto-reply/` | 🎭 Node.js + Playwright 浏览器自动化（评论抓取 & 发送） |
 | `schema.sql` | 🗃️ 完整数据库结构（含 video_tracking 预测表） |
 | `SKILL.md` | 📖 AI Agent 操作手册（含全部踩坑记录和正确的做法） |
-| `com.hermes.douyin-tracker.plist` | ⚙️ launchd 配置模板 |
+| `com.codex.douyin-tracker.plist` | ⚙️ launchd 配置模板 |
 | `README.md` | 📄 你正在看的东西 |
 
 ---
@@ -173,13 +194,13 @@ python3 prediction_query.py ratios
 python3 prediction_query.py track "视频标题"
 ```
 
-### 配 Hermes Agent 用
+### 配 Codex Agent 用
 
 把追踪脚本加入 cron，每 30 分钟自动更新：
 
 ```bash
-# Hermes 里一句搞定：
-@hermes 追踪新视频 --init --title "xxx"
+# Codex 里一句搞定：
+@codex 追踪新视频 --init --title "xxx"
 # 然后自动生成 48 次 cron（24h × 每30min）
 ```
 
@@ -221,7 +242,7 @@ python3 auto_reply.py export "视频标题关键词"
 
 ### AI 生成回复文案
 
-你需要用任意 AI 工具（ChatGPT / Claude / Hermes 等）为这些评论生成回复，保存为：
+你需要用任意 AI 工具（ChatGPT / Claude / Codex 等）为这些评论生成回复，保存为：
 
 ```
 auto-reply/comments-output/auto-reply-plan.json

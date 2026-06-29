@@ -15,9 +15,9 @@ import urllib.request
 import urllib.parse
 from datetime import datetime, timedelta
 
-DB_PATH = os.path.expanduser("~/.hermes/douyin_stats.db")
-SCRAPE_SCRIPT = os.path.expanduser("~/.hermes/scripts/douyin_hourly.py")
-ENV_PATH = os.path.expanduser("~/.hermes/.env")
+DB_PATH = os.path.expanduser("~/.codex/douyin-tool/douyin_stats.db")
+SCRAPE_SCRIPT = os.path.expanduser("~/.codex/douyin-tool/scripts/douyin_hourly.py")
+ENV_PATH = os.path.expanduser("~/.codex/douyin-tool/.env")
 TARGET_TITLE = 'MiniMax王炸功能发布，8分钟复刻影视飓风同款数据仪表盘 #青年创作者成长计划 #Minimax'
 
 # —— Telegram ——
@@ -27,7 +27,7 @@ def _load_env_var(key):
             for line in f:
                 line = line.strip()
                 if line.startswith(key + "="):
-                    return line.split("=", 1)[1].strip()
+                    return line.split("=", 1)[1].strip().strip('"').strip("'")
     except:
         pass
     return os.environ.get(key, "")
@@ -488,10 +488,10 @@ def main():
         print(f"🔮 <b>预测最终</b>：{format_num(predicted)} → <b>{tier}</b>（置信度 {confidence:.0%}）")
         _print_cohort(peers, ctr_pct, eng_pct, dur_pct, hours_since_pub, video['ctr5s'], eng_rate, ratio)
         
-        # 同步到飞书
+        # 同步到 Notion
         try:
             import subprocess as _sp, os as _os
-            _sp.run(['python3', _os.path.expanduser('~/.hermes/scripts/feishu_sync.py')],
+            _sp.run(['python3', _os.path.expanduser('~/.codex/douyin-tool/scripts/notion_sync.py')],
                     timeout=300, capture_output=True, close_fds=True)
         except:
             pass
@@ -587,10 +587,10 @@ def main():
     print(f"   └ 模型: v3同期对比 ×{ratio:.1f}（{len(peers)}条同期 + CTR/互动/均时长三维修正）")
     _print_cohort(peers, ctr_pct, eng_pct, dur_pct, hours_since_pub, video['ctr5s'], eng_rate, ratio)
 
-    # 同步到飞书
+    # 同步到 Notion
     try:
         import subprocess as _sp, os as _os
-        _sp.run(['python3', _os.path.expanduser('~/.hermes/scripts/feishu_sync.py')],
+        _sp.run(['python3', _os.path.expanduser('~/.codex/douyin-tool/scripts/notion_sync.py')],
                 timeout=300, capture_output=True, close_fds=True)
     except:
         pass

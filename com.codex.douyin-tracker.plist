@@ -3,26 +3,26 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.hermes.douyin-tracker</string>
+    <string>com.codex.douyin-tracker</string>
     <key>ProgramArguments</key>
     <array>
         <string>/usr/bin/python3</string>
-        <string>/Users/YOUR_USERNAME/douyin-creator-scraping/douyin_hourly.py</string>
+        <string>/Users/may22/.codex/douyin-tool/scripts/douyin_hourly.py</string>
     </array>
     <key>EnvironmentVariables</key>
     <dict>
         <key>HOME</key>
-        <string>/Users/YOUR_USERNAME</string>
+        <string>/Users/may22</string>
         <key>PATH</key>
-        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <string>/Users/may22/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:/Users/may22/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
     </dict>
     <key>StartInterval</key>
     <integer>3600</integer>
     <key>RunAtLoad</key>
     <true/>
     <key>StandardOutPath</key>
-    <string>/Users/YOUR_USERNAME/douyin-creator-scraping/logs/hourly.log</string>
+    <string>/Users/may22/.codex/douyin-tool/logs/hourly.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/YOUR_USERNAME/douyin-creator-scraping/logs/hourly_error.log</string>
+    <string>/Users/may22/.codex/douyin-tool/logs/hourly_error.log</string>
 </dict>
 </plist>

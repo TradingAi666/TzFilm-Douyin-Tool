@@ -16,9 +16,9 @@ import urllib.parse
 from datetime import datetime
 import sys
 
-DB_PATH = os.path.expanduser("~/.hermes/douyin_stats.db")
-LOG_PATH = os.path.expanduser("~/.hermes/logs/douyin_hourly.log")
-ENV_PATH = os.path.expanduser("~/.hermes/.env")
+DB_PATH = os.path.expanduser("~/.codex/douyin-tool/douyin_stats.db")
+LOG_PATH = os.path.expanduser("~/.codex/douyin-tool/logs/douyin_hourly.log")
+ENV_PATH = os.path.expanduser("~/.codex/douyin-tool/.env")
 # 用绝对路径，优先读 HOME 环境变量，兜底用 expanduser
 _HOME = os.environ.get('HOME') or os.path.expanduser('~')
 # Python 没有 TCC 权限读 ~/Downloads，所以让 AppleScript 把文件搬到 /tmp 来
@@ -88,7 +88,7 @@ def _load_env_var(key):
             for line in f:
                 line = line.strip()
                 if line.startswith(key + "="):
-                    return line.split("=", 1)[1].strip()
+                    return line.split("=", 1)[1].strip().strip('"').strip("'")
     except:
         pass
     return os.environ.get(key, "")
@@ -564,7 +564,7 @@ def main():
     log(f"HOME={_HOME} DOWNLOADS={DOWNLOADS_DIR} exists={os.path.exists(DOWNLOADS_DIR)}")
 
     # 0. 并发锁：防止手动运行和 cronjob 同时抢 Chrome
-    lock_file = os.path.expanduser("~/.hermes/.douyin_scrape.lock")
+    lock_file = os.path.expanduser("~/.codex/douyin-tool/.douyin_scrape.lock")
     import fcntl
     lock_fd = open(lock_file, 'w')
     try:
@@ -669,14 +669,19 @@ def main():
         except Exception as e:
             log(f"粉丝抓取跳过: {e}")
 
-        # 11. 同步到飞书多维表格
+        # 11. 同步到 Notion
         try:
             import subprocess as _sp
-            _sp.run(['python3', os.path.expanduser('~/.hermes/scripts/feishu_sync.py')],
-                    timeout=300, capture_output=True, close_fds=True)
-            log("飞书同步完成")
+            sync_result = _sp.run(
+                    ['python3', os.path.expanduser('~/.codex/douyin-tool/scripts/notion_sync.py')],
+                    timeout=300, capture_output=True, text=True, close_fds=True)
+            if sync_result.returncode == 0:
+                log("Notion 同步完成")
+            else:
+                detail = (sync_result.stderr or sync_result.stdout or "").strip()
+                log(f"Notion 同步失败: exit={sync_result.returncode} {detail[:500]}")
         except Exception as e:
-            log(f"飞书同步跳过: {e}")
+            log(f"Notion 同步跳过: {e}")
 
         log("✅ 完成")
     finally:
